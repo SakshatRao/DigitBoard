@@ -132,7 +132,8 @@ void calibrate_piezo(void)
 // Setup / Loop
 //==============================================================================
 
-void setup() {
+void setup()
+{
   pinMode(D5, OUTPUT);
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(A0, INPUT);
@@ -146,7 +147,8 @@ void setup() {
   while (!Serial);
 
   // Initialize IMU sensors
-  if (!IMU.begin()) {
+  if (!IMU.begin())
+  {
     Serial.println("Failed to initialize IMU!");
     while (1);
   }
@@ -163,7 +165,8 @@ void setup() {
 
   // Get the TFL representation of the model byte array
   tflModel = tflite::GetModel(digit_recognizer_model_weights);
-  if (tflModel->version() != TFLITE_SCHEMA_VERSION) {
+  if (tflModel->version() != TFLITE_SCHEMA_VERSION)
+  {
     Serial.println("Model schema mismatch!");
     while (1);
   }
@@ -184,9 +187,10 @@ void loop() {
   float aX, aY, aZ, gX, gY, gZ;
 
   // Wait for motion above the threshold setting
-  while (!isCapturing) {
-    if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
-     
+  while (!isCapturing)
+  {
+    if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable())
+    {
       IMU.readAcceleration(aX, aY, aZ);
       IMU.readGyroscope(gX, gY, gZ);
 
@@ -195,7 +199,8 @@ void loop() {
       average /= 6.;
 
       // Above the threshold?
-      if (average >= MOTION_THRESHOLD) {
+      if (average >= MOTION_THRESHOLD)
+      {
         digitalWrite(D5, HIGH);
         isCapturing = true;
         numSamplesRead = 0;
@@ -204,11 +209,11 @@ void loop() {
     }
   }
 
-  while (isCapturing) {
-
+  while (isCapturing)
+  {
     // Check if both acceleration and gyroscope data is available
-    if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
-
+    if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable())
+    {
       // read the acceleration and gyroscope data
       IMU.readAcceleration(aX, aY, aZ);
       IMU.readGyroscope(gX, gY, gZ);
@@ -237,8 +242,8 @@ void loop() {
       }
 
       // Do we have the samples we need?
-      if (numSamplesRead == NUM_SAMPLES) {
-        
+      if (numSamplesRead == NUM_SAMPLES)
+      {  
         // Stop capturing
         isCapturing = false;
 
@@ -246,7 +251,8 @@ void loop() {
         {
           // Run inference
           TfLiteStatus invokeStatus = tflInterpreter->Invoke();
-          if (invokeStatus != kTfLiteOk) {
+          if (invokeStatus != kTfLiteOk)
+          {
             Serial.println("Error: Invoke failed!");
             while (1);
             return;
@@ -255,9 +261,11 @@ void loop() {
           // Loop through the output tensor values from the model
           int maxIndex = 0;
           float maxValue = 0;
-          for (int i = 0; i < NUM_GESTURES; i++) {
+          for (int i = 0; i < NUM_GESTURES; i++)
+          {
             float _value = tflOutputTensor->data.f[i];
-            if(_value > maxValue){
+            if(_value > maxValue)
+            {
               maxValue = _value;
               maxIndex = i;
             }

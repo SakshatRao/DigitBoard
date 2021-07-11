@@ -1,11 +1,16 @@
 #include <ArduinoBLE.h>
-BLEService batteryService("1101");
-BLEUnsignedCharCharacteristic batteryLevelChar("2101", BLERead | BLENotify);
+BLEService DBService("1011");
+BLEUnsignedIntCharacteristic DBDigitChar("936b6a25-e503-4f7c-9349-bcc76c22b8c3", BLERead | BLENotify);
+BLEUnsignedIntCharacteristic DBCmdChar("a1e8f5b1-696b-4e4c-87c6-69dfe0b0093b", BLERead | BLEWrite);
+
+uint8_t digit = 0;
+
+#define NONE_CODE                                 ((uint8_t)1)
+#define DIGIT_ACK_CODE                            ((uint8_t)2)
 
 void setup()
 {
   Serial.begin(9600);
-  while (!Serial);
   
   pinMode(LED_BUILTIN, OUTPUT);
   if (!BLE.begin()) 
@@ -14,33 +19,50 @@ void setup()
     while (1);
   }
   
-  BLE.setLocalName("BatteryMonitor");
-  BLE.setAdvertisedService(batteryService);
-  batteryService.addCharacteristic(batteryLevelChar);
-  BLE.addService(batteryService);
+  BLE.setLocalName("DigitBoardBLE");
+  BLE.setAdvertisedService(DBService);
+  DBService.addCharacteristic(DBDigitChar);
+  DBService.addCharacteristic(DBCmdChar);
+  BLE.addService(DBService);
+
+  DBDigitChar.setValue(0);
+  DBCmdChar.setValue(0);
   
   BLE.advertise();
   Serial.println("Bluetooth device active, waiting for connections...");
 }
 
-void loop() 
+void loop()
 {
   BLEDevice central = BLE.central();
   
   if (central) 
   {
-    Serial.print("Connected to central: ");
-    Serial.println(central.address());
+    Serial.println("Connected!");
     digitalWrite(LED_BUILTIN, HIGH);
-    
-    while (central.connected())
+
+    byte rec_value = 0;
+    while(central.connected())
     {
-      int battery = analogRead(A0);
-      int batteryLevel = map(battery, 0, 1023, 0, 100);
-      Serial.print("Battery Level % is now: ");
-      Serial.println(batteryLevel);
-      batteryLevelChar.writeValue(batteryLevel);
-      delay(200);
+      DBCmdChar.readValue(rec_value);
+      Serial.println(rec_value);
+      if(rec_value == DIGIT_ACK_CODE)
+      {
+        DBCmdChar.writeValue(NONE_CODE);
+        break;
+      }
+      delay(100);
+    }
+
+    Serial.println("Initiating communication...");
+    delay(10000);
+    
+    while(central.connected())
+    {
+      digit = (digit + 1) % 10;
+      Serial.println(digit);
+      DBDigitChar.writeValue(digit);
+      delay((int)random(1, 9) * 1000);
     }
   }
   digitalWrite(LED_BUILTIN, LOW);
