@@ -55,7 +55,7 @@ void loop()
     }
 
     Serial.println("Initiating communication...");
-    delay(10000);
+    delay(5000);
     
     while(central.connected())
     {
