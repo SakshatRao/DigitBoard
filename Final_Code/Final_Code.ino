@@ -31,6 +31,7 @@
 #include <tensorflow/lite/micro/micro_interpreter.h>
 #include <tensorflow/lite/schema/schema_generated.h>
 #include <tensorflow/lite/version.h>
+#include <Arduino_APDS9960.h>
 
 
 //==============================================================================
@@ -40,16 +41,16 @@
 
 // This is the model you trained in Tiny Motion Trainer, converted to 
 // a C style byte array.
-#include "digit_recognizer_model.h"
+#include "binary_recognizer_model.h"
 
 // Values from Tiny Motion Trainer
 #define MOTION_THRESHOLD 0.093
-#define CAPTURE_DELAY 1000 // This is now in milliseconds
+#define CAPTURE_DELAY 500 // This is now in milliseconds
 #define NUM_SAMPLES 150
 
 // Array to map gesture index to a name
 const char *GESTURES[] = {
-    "1", "2", "3", "4", "5", "6", "7", "8", "9", "0"
+    "0", "1"
 };
 
 
@@ -64,6 +65,8 @@ bool isCapturing = false;
 // Num samples read from the IMU sensors
 // "Full" by default to start in idle
 int numSamplesRead = 0;
+
+#define LED_MOTION                        D6
 
 
 //==============================================================================
@@ -102,6 +105,8 @@ uint8_t piezo_upper_thresh, piezo_lower_thresh;
 #define STATUS_NOTPRESSED               0
 uint8_t piezo_pressed_status;
 
+#define LED_PIEZO                       D5
+
 void calibrate_piezo(void)
 {
   uint8_t piezo_calibration_iters = 20;
@@ -125,6 +130,11 @@ void calibrate_piezo(void)
   piezo_lower_thresh = piezo_avg_val - 2 * (piezo_avg_val - piezo_min_val);
 }
 
+int r, g, b, a;
+
+#define LED_SERIAL                      LED_BUILTIN
+#define LED_ILLUM                       D4
+
 
 
 
@@ -134,40 +144,36 @@ void calibrate_piezo(void)
 
 void setup()
 {
-  pinMode(D5, OUTPUT);
-  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(LED_PIEZO, OUTPUT);
+  pinMode(LED_SERIAL, OUTPUT);
+  pinMode(LED_MOTION, OUTPUT);
   pinMode(A0, INPUT);
 
   piezo_pressed_status = STATUS_NOTPRESSED;
   calibrate_piezo();
         
-  Serial.begin(9600);
-
-  // Wait for serial monitor to connect
-  while (!Serial);
+  Serial.begin(115200);
 
   // Initialize IMU sensors
   if (!IMU.begin())
   {
-    Serial.println("Failed to initialize IMU!");
+//    Serial.println("Failed to initialize IMU!");
     while (1);
   }
 
   // Print out the samples rates of the IMUs
-  Serial.print("Accelerometer sample rate: ");
-  Serial.print(IMU.accelerationSampleRate());
-  Serial.println(" Hz");
-  Serial.print("Gyroscope sample rate: ");
-  Serial.print(IMU.gyroscopeSampleRate());
-  Serial.println(" Hz");
-
-  Serial.println();
+//  Serial.print("Accelerometer sample rate: ");
+//  Serial.print(IMU.accelerationSampleRate());
+//  Serial.println(" Hz");
+//  Serial.print("Gyroscope sample rate: ");
+//  Serial.print(IMU.gyroscopeSampleRate());
+//  Serial.println(" Hz");
 
   // Get the TFL representation of the model byte array
-  tflModel = tflite::GetModel(digit_recognizer_model_weights);
+  tflModel = tflite::GetModel(binary_recognizer_model_weights);
   if (tflModel->version() != TFLITE_SCHEMA_VERSION)
   {
-    Serial.println("Model schema mismatch!");
+//    Serial.println("Model schema mismatch!");
     while (1);
   }
 
@@ -180,114 +186,147 @@ void setup()
   // Get pointers for the model's input and output tensors
   tflInputTensor = tflInterpreter->input(0);
   tflOutputTensor = tflInterpreter->output(0);
+
+  if (!APDS.begin()) {
+    Serial.println("Error initializing APDS9960 sensor.");
+  }
 }
 
-void loop() {
-  // Variables to hold IMU data
-  float aX, aY, aZ, gX, gY, gZ;
-
-  // Wait for motion above the threshold setting
-  while (!isCapturing)
+void loop()
+{
+  if(Serial)
   {
-    if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable())
-    {
-      IMU.readAcceleration(aX, aY, aZ);
-      IMU.readGyroscope(gX, gY, gZ);
-
-      // Sum absolute values
-      float average = fabs(aX / 4.0) + fabs(aY / 4.0) + fabs(aZ / 4.0) + fabs(gX / 2000.0) + fabs(gY / 2000.0) + fabs(gZ / 2000.0);
-      average /= 6.;
-
-      // Above the threshold?
-      if (average >= MOTION_THRESHOLD)
-      {
-        digitalWrite(D5, HIGH);
-        isCapturing = true;
-        numSamplesRead = 0;
+    while(Serial.available())
+      if(Serial.read() - 48 == 2)
         break;
+
+    digitalWrite(LED_SERIAL, HIGH);
+    
+    while(Serial)
+    {
+      // Variables to hold IMU data
+      float aX, aY, aZ, gX, gY, gZ;
+    
+      // Wait for motion above the threshold setting
+      if(!isCapturing)
+      {
+        if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable())
+        {
+          IMU.readAcceleration(aX, aY, aZ);
+          IMU.readGyroscope(gX, gY, gZ);
+    
+          // Sum absolute values
+          float average = fabs(aX / 4.0) + fabs(aY / 4.0) + fabs(aZ / 4.0) + fabs(gX / 2000.0) + fabs(gY / 2000.0) + fabs(gZ / 2000.0);
+          average /= 6.;
+    
+          // Above the threshold?
+          if (average >= MOTION_THRESHOLD)
+          {
+            digitalWrite(LED_MOTION, HIGH);
+            isCapturing = true;
+            numSamplesRead = 0;
+            break;
+          }
+        }
+      }
+    
+      if(isCapturing)
+      {
+        // Check if both acceleration and gyroscope data is available
+        if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable())
+        {
+          // read the acceleration and gyroscope data
+          IMU.readAcceleration(aX, aY, aZ);
+          IMU.readGyroscope(gX, gY, gZ);
+    
+          // Normalize the IMU data between -1 to 1 and store in the model's
+          // input tensor. Accelerometer data ranges between -4 and 4,
+          // gyroscope data ranges between -2000 and 2000
+          tflInputTensor->data.f[numSamplesRead * 6 + 0] = aX / 4.0;
+          tflInputTensor->data.f[numSamplesRead * 6 + 1] = aY / 4.0;
+          tflInputTensor->data.f[numSamplesRead * 6 + 2] = aZ / 4.0;
+          tflInputTensor->data.f[numSamplesRead * 6 + 3] = gX / 2000.0;
+          tflInputTensor->data.f[numSamplesRead * 6 + 4] = gY / 2000.0;
+          tflInputTensor->data.f[numSamplesRead * 6 + 5] = gZ / 2000.0;
+    
+          numSamplesRead++;
+    
+          // Piezo-electric code
+          if(piezo_pressed_status == STATUS_NOTPRESSED)
+          {
+            uint8_t piezo_val = analogRead(A0);
+            if(piezo_val >= piezo_upper_thresh)
+            {
+              piezo_pressed_status = STATUS_PRESSED;
+              digitalWrite(LED_PIEZO, HIGH);
+            }
+          }
+    
+          // Do we have the samples we need?
+          if (numSamplesRead == NUM_SAMPLES)
+          {  
+            // Stop capturing
+            isCapturing = false;
+    
+            if(piezo_pressed_status == STATUS_PRESSED)
+            {
+              // Run inference
+              TfLiteStatus invokeStatus = tflInterpreter->Invoke();
+              if (invokeStatus != kTfLiteOk)
+              {
+    //            Serial.println("Error: Invoke failed!");
+                while (1);
+                return;
+              }
+      
+              // Loop through the output tensor values from the model
+              int maxIndex = 0;
+              float maxValue = 0;
+              for (int i = 0; i < NUM_GESTURES; i++)
+              {
+                float _value = tflOutputTensor->data.f[i];
+                if(_value > maxValue)
+                {
+                  maxValue = _value;
+                  maxIndex = i;
+                }
+    //            Serial.print(GESTURES[i]);
+    //            Serial.print(": ");
+    //            Serial.println(tflOutputTensor->data.f[i], 6);
+              }
+              
+    //          Serial.print("Winner: ");
+              Serial.println(GESTURES[maxIndex]);
+    
+              digitalWrite(LED_PIEZO, LOW);
+              // Add delay to not double trigger
+              delay(CAPTURE_DELAY);
+              calibrate_piezo();
+    
+              piezo_pressed_status = STATUS_NOTPRESSED;
+            }
+            digitalWrite(LED_MOTION, LOW);
+          }
+        }
+      }
+      if(APDS.colorAvailable())
+      {
+        APDS.readColor(r, g, b, a);
+        if(a < 5)
+          digitalWrite(LED_ILLUM, HIGH);
+        else
+          digitalWrite(LED_ILLUM, LOW);
       }
     }
   }
+  digitalWrite(LED_SERIAL, LOW);
 
-  while (isCapturing)
+  if(APDS.colorAvailable())
   {
-    // Check if both acceleration and gyroscope data is available
-    if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable())
-    {
-      // read the acceleration and gyroscope data
-      IMU.readAcceleration(aX, aY, aZ);
-      IMU.readGyroscope(gX, gY, gZ);
-
-      // Normalize the IMU data between -1 to 1 and store in the model's
-      // input tensor. Accelerometer data ranges between -4 and 4,
-      // gyroscope data ranges between -2000 and 2000
-      tflInputTensor->data.f[numSamplesRead * 6 + 0] = aX / 4.0;
-      tflInputTensor->data.f[numSamplesRead * 6 + 1] = aY / 4.0;
-      tflInputTensor->data.f[numSamplesRead * 6 + 2] = aZ / 4.0;
-      tflInputTensor->data.f[numSamplesRead * 6 + 3] = gX / 2000.0;
-      tflInputTensor->data.f[numSamplesRead * 6 + 4] = gY / 2000.0;
-      tflInputTensor->data.f[numSamplesRead * 6 + 5] = gZ / 2000.0;
-
-      numSamplesRead++;
-
-      // Piezo-electric code
-      if(piezo_pressed_status == STATUS_NOTPRESSED)
-      {
-        uint8_t piezo_val = analogRead(A0);
-        if(piezo_val >= piezo_upper_thresh)
-        {
-          piezo_pressed_status = STATUS_PRESSED;
-          digitalWrite(LED_BUILTIN, HIGH);
-        }
-      }
-
-      // Do we have the samples we need?
-      if (numSamplesRead == NUM_SAMPLES)
-      {  
-        // Stop capturing
-        isCapturing = false;
-
-        if(piezo_pressed_status == STATUS_PRESSED)
-        {
-          // Run inference
-          TfLiteStatus invokeStatus = tflInterpreter->Invoke();
-          if (invokeStatus != kTfLiteOk)
-          {
-            Serial.println("Error: Invoke failed!");
-            while (1);
-            return;
-          }
-  
-          // Loop through the output tensor values from the model
-          int maxIndex = 0;
-          float maxValue = 0;
-          for (int i = 0; i < NUM_GESTURES; i++)
-          {
-            float _value = tflOutputTensor->data.f[i];
-            if(_value > maxValue)
-            {
-              maxValue = _value;
-              maxIndex = i;
-            }
-            Serial.print(GESTURES[i]);
-            Serial.print(": ");
-            Serial.println(tflOutputTensor->data.f[i], 6);
-          }
-          
-          Serial.print("Winner: ");
-          Serial.print(GESTURES[maxIndex]);
-          
-          Serial.println();
-
-          digitalWrite(LED_BUILTIN, LOW);
-          // Add delay to not double trigger
-          delay(CAPTURE_DELAY);
-          calibrate_piezo();
-
-          piezo_pressed_status = STATUS_NOTPRESSED;
-        }
-        digitalWrite(D5, LOW);
-      }
-    }
+    APDS.readColor(r, g, b, a);
+    if(a < 5)
+      digitalWrite(LED_ILLUM, HIGH);
+    else
+      digitalWrite(LED_ILLUM, LOW);
   }
 }

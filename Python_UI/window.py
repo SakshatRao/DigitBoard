@@ -1,8 +1,8 @@
 import tkinter
 import time
 import numpy as np
-import pygatt
-from binascii import hexlify
+import serial
+import threading
 
 WINDOW_WIDTH = 1250
 WINDOW_HEIGHT = 600
@@ -74,30 +74,46 @@ def convert_digits_to_str(digits, cursor_pos):
         digits_str.append("|")
     return digits_str
 
-adapter = pygatt.GATTToolBackend()
+# adapter = pygatt.GATTToolBackend()
 
-def handle_data(handle, value):
+# def handle_data(handle, value):
+#     global COMMUNICATION_STARTED
+#     if(COMMUNICATION_STARTED == True):
+#         global NEW_DIGIT
+#         global NEW_DIGIT_ARRIVED
+#         if(NEW_DIGIT_ARRIVED == False):
+#             new_digit = hexlify(value).decode("utf-8")[1]
+#             print(f"Received digit: {new_digit}")
+#             NEW_DIGIT = new_digit
+#             NEW_DIGIT_ARRIVED = True
+
+def ReceiveThread():
+
+    global serialPort
     global COMMUNICATION_STARTED
-    if(COMMUNICATION_STARTED == True):
-        global NEW_DIGIT
-        global NEW_DIGIT_ARRIVED
-        if(NEW_DIGIT_ARRIVED == False):
-            new_digit = hexlify(value).decode("utf-8")[1]
-            print(f"Received digit: {new_digit}")
-            NEW_DIGIT = new_digit
-            NEW_DIGIT_ARRIVED = True
+    global NEW_DIGIT
+    global NEW_DIGIT_ARRIVED
+    while(serialPort):
+        if(COMMUNICATION_STARTED == True):
+            if(NEW_DIGIT_ARRIVED == False):
+                if(serialPort.in_waiting > 0):
+                    serialString = serialPort.read().strip()
+                    if(len(serialString) == 1):
+                        new_digit = int(serialString.decode("ASCII"))
+                        print(f"Received digit: {new_digit}")
+                        NEW_DIGIT = new_digit
+                        NEW_DIGIT_ARRIVED = True
 
 try:
-    adapter.start()
-    device = adapter.connect('6c:5a:51:5f:5d:63')
-
+    serialPort = serial.Serial(port = "/dev/ttyACM0", baudrate = 115200, bytesize = 8, timeout = 2, stopbits = serial.STOPBITS_ONE)
     print("Initializing ")
-    device.char_write("a1e8f5b1-696b-4e4c-87c6-69dfe0b0093b", bytearray([DIGIT_ACK_CODE]), wait_for_response = True)
     
+    serialPort.write(b"2")
     COMMUNICATION_STARTED = True
     print("Connection Initiating...")
 
-    device.subscribe("936b6a25-e503-4f7c-9349-bcc76c22b8c3", callback = handle_data)
+    threading.Thread(target = ReceiveThread).start()
+
     while True:
         if(NEW_DIGIT_ARRIVED == True):
             (DIGITS, CURSOR_POS) = add_new_digit(NEW_DIGIT, DIGITS, CURSOR_POS)
@@ -107,4 +123,4 @@ try:
             NEW_DIGIT_ARRIVED = False
             time.sleep(1)
 finally:
-    adapter.stop()
+    serialPort.close()

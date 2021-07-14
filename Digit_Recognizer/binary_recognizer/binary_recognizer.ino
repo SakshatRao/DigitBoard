@@ -133,7 +133,7 @@ void calibrate_piezo(void)
 //==============================================================================
 
 void setup() {
-  pinMode(D2, OUTPUT);
+  pinMode(D5, OUTPUT);
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(A0, INPUT);
 
@@ -196,7 +196,7 @@ void loop() {
 
       // Above the threshold?
       if (average >= MOTION_THRESHOLD) {
-        digitalWrite(D2, HIGH);
+        digitalWrite(D5, HIGH);
         isCapturing = true;
         numSamplesRead = 0;
         break;
@@ -279,7 +279,7 @@ void loop() {
 
           piezo_pressed_status = STATUS_NOTPRESSED;
         }
-        digitalWrite(D2, LOW);
+        digitalWrite(D5, LOW);
       }
     }
   }
