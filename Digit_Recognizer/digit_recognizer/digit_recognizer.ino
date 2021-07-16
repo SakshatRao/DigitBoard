@@ -40,16 +40,16 @@
 
 // This is the model you trained in Tiny Motion Trainer, converted to 
 // a C style byte array.
-#include "digit_recognizer_model.h"
+#include "model.h"
 
 // Values from Tiny Motion Trainer
 #define MOTION_THRESHOLD 0.093
-#define CAPTURE_DELAY 1000 // This is now in milliseconds
-#define NUM_SAMPLES 150
+#define CAPTURE_DELAY 500 // This is now in milliseconds
+#define NUM_SAMPLES 200
 
 // Array to map gesture index to a name
 const char *GESTURES[] = {
-    "1", "2", "3", "4", "5", "6", "7", "8", "9", "0"
+    "0", "1", "2"
 };
 
 
@@ -94,7 +94,7 @@ byte tensorArena[tensorArenaSize];
 //==============================================================================
 
 void setup() {
-  pinMode(D5, OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
         
   Serial.begin(9600);
 
@@ -118,7 +118,7 @@ void setup() {
   Serial.println();
 
   // Get the TFL representation of the model byte array
-  tflModel = tflite::GetModel(digit_recognizer_model_weights);
+  tflModel = tflite::GetModel(model);
   if (tflModel->version() != TFLITE_SCHEMA_VERSION) {
     Serial.println("Model schema mismatch!");
     while (1);
@@ -152,7 +152,6 @@ void loop() {
 
       // Above the threshold?
       if (average >= MOTION_THRESHOLD) {
-        digitalWrite(D5, HIGH);
         isCapturing = true;
         numSamplesRead = 0;
         break;
@@ -186,8 +185,6 @@ void loop() {
         
         // Stop capturing
         isCapturing = false;
-
-        digitalWrite(D5, LOW);
         
         // Run inference
         TfLiteStatus invokeStatus = tflInterpreter->Invoke();
