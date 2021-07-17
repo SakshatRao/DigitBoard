@@ -46,6 +46,8 @@
 #define MOTION_THRESHOLD 0.093
 #define CAPTURE_DELAY 500 // This is now in milliseconds
 #define NUM_SAMPLES 200
+// For fast digit recognition...
+// #define NUM_SAMPLES 125
 
 // Array to map gesture index to a name
 const char *GESTURES[] = {
