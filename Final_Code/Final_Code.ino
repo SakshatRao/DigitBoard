@@ -41,16 +41,16 @@
 
 // This is the model you trained in Tiny Motion Trainer, converted to 
 // a C style byte array.
-#include "binary_recognizer_model.h"
+#include "digit012_recognizer_model.h"
 
 // Values from Tiny Motion Trainer
 #define DIGITS_MOTION_THRESHOLD 0.093
 #define DIGITS_CAPTURE_DELAY 500 // This is now in milliseconds
-#define DIGITS_NUM_SAMPLES 150
+#define DIGITS_NUM_SAMPLES 200
 
 // Array to map gesture index to a name
 const char *DIGITS[] = {
-    "0", "1"
+    "0", "1", "2"
 };
 
 #include "gesture_recognizer_model.h"
@@ -84,8 +84,7 @@ int DIGITS_numSamplesRead = 0;
 // "Full" by default to start in idle
 int GESTURES_numSamplesRead = 0;
 
-#define LED_MOTION_DIGITS                     D6
-#define LED_MOTION_GESTURES                   D3
+#define LED_MOTION                          LED_BUILTIN
 
 
 //==============================================================================
@@ -135,8 +134,6 @@ uint8_t piezo_upper_thresh, piezo_lower_thresh;
 #define STATUS_NOTPRESSED               0
 uint8_t piezo_pressed_status;
 
-#define LED_PIEZO                       D5
-
 void calibrate_piezo(void)
 {
   uint8_t piezo_calibration_iters = 20;
@@ -162,9 +159,8 @@ void calibrate_piezo(void)
 
 int r, g, b, a;
 
-#define LED_SERIAL                      LED_BUILTIN
-#define LED_ILLUM                       D4
-#define BUTTON_MODE                     D2
+#define LED_ILLUM                       D6
+#define BUTTON_MODE                     D5
 
 
 
@@ -175,10 +171,8 @@ int r, g, b, a;
 
 void setup()
 {
-  pinMode(LED_PIEZO, OUTPUT);
-  pinMode(LED_SERIAL, OUTPUT);
-  pinMode(LED_MOTION_DIGITS, OUTPUT);
-  pinMode(LED_MOTION_GESTURES, OUTPUT);
+  pinMode(LED_MOTION, OUTPUT);
+  pinMode(LED_ILLUM, OUTPUT);
   pinMode(BUTTON_MODE, INPUT);
   pinMode(A0, INPUT);
 
@@ -194,7 +188,7 @@ void setup()
   }
 
   // Get the TFL representation of the model byte array
-  DIGITS_tflModel = tflite::GetModel(binary_recognizer_model_weights);
+  DIGITS_tflModel = tflite::GetModel(digit012_recognizer_model_weights);
   if (DIGITS_tflModel->version() != TFLITE_SCHEMA_VERSION)
   {
     while (1);
@@ -240,8 +234,6 @@ void loop()
       if(Serial.read() - 48 == 2)
         break;
 
-    digitalWrite(LED_SERIAL, HIGH);
-    
     while(Serial)
     {
       uint8_t mode = digitalRead(BUTTON_MODE);
@@ -266,7 +258,6 @@ void loop()
             // Above the threshold?
             if (average >= DIGITS_MOTION_THRESHOLD)
             {
-              digitalWrite(LED_MOTION_DIGITS, HIGH);
               DIGITS_isCapturing = true;
               DIGITS_numSamplesRead = 0;
               break;
@@ -302,13 +293,13 @@ void loop()
               if(piezo_val >= piezo_upper_thresh)
               {
                 piezo_pressed_status = STATUS_PRESSED;
-                digitalWrite(LED_PIEZO, HIGH);
+                digitalWrite(LED_MOTION, HIGH);
               }
             }
       
             // Do we have the samples we need?
             if (DIGITS_numSamplesRead == DIGITS_NUM_SAMPLES)
-            {  
+            {
               // Stop capturing
               DIGITS_isCapturing = false;
       
@@ -335,16 +326,16 @@ void loop()
                   }
                 }
                 
-                Serial.println(DIGITS[maxIndex]);
+                if(maxValue >= 0.5)
+                  Serial.println(DIGITS[maxIndex]);
       
-                digitalWrite(LED_PIEZO, LOW);
+                digitalWrite(LED_MOTION, LOW);
                 // Add delay to not double trigger
                 delay(DIGITS_CAPTURE_DELAY);
                 calibrate_piezo();
       
                 piezo_pressed_status = STATUS_NOTPRESSED;
               }
-              digitalWrite(LED_MOTION_DIGITS, LOW);
             }
           }
         }
@@ -377,7 +368,7 @@ void loop()
             // Above the threshold?
             if (average >= GESTURES_MOTION_THRESHOLD)
             {
-              digitalWrite(LED_MOTION_GESTURES, HIGH);
+              digitalWrite(LED_MOTION, HIGH);
               GESTURES_isCapturing = true;
               GESTURES_numSamplesRead = 0;
               break;
@@ -435,10 +426,9 @@ void loop()
               
               Serial.println(GESTURES[maxIndex]);
               
+              digitalWrite(LED_MOTION, LOW);
               // Add delay to not double trigger
               delay(GESTURES_CAPTURE_DELAY);
-    
-              digitalWrite(LED_MOTION_GESTURES, LOW);
             }
           }
         }
@@ -453,7 +443,6 @@ void loop()
       }
     }
   }
-  digitalWrite(LED_SERIAL, LOW);
 
   if(APDS.colorAvailable())
   {

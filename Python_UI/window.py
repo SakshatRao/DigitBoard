@@ -77,7 +77,7 @@ scale_widget.place(x = WINDOW_WIDTH * 2 / 3, y = 2 * WINDOW_HEIGHT / 3)
 
 window.update()
 
-digit_output = tkinter.Label(window, text = "", fg = DIGIT_COLORS[DIGIT_COLOR_IDX], bg = '#fb0', font = ('Helvetica', DIGIT_SIZES[DIGIT_SIZE_IDX]))
+digit_output = tkinter.Label(window, text = "|", fg = DIGIT_COLORS[DIGIT_COLOR_IDX], bg = '#fb0', font = ('Helvetica', DIGIT_SIZES[DIGIT_SIZE_IDX]))
 digit_output.place(x = 0, y = WINDOW_HEIGHT / 5)
 
 def add_new_digit(digit, digits, cursor_pos):
