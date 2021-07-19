@@ -10,8 +10,8 @@ https://youtu.be/d9JbB8Kmpzg
 
 ## Overview
 I like to call this project of mine as 'DigitBoard' because of two reasons - <br>
-1. It was designed to implement 'digit' recognition using TinyML models
-2. This idea essentially 'digit'izes pen-and-paper writing, i.e. as you write something down on paper, you are automatically and simultaneously getting a digital version of your writing.
+1. It was designed to implement <b>digit</b> recognition using TinyML models
+2. This idea essentially <b>digit</b>izes pen-and-paper writing, i.e. as you write something down on paper, you are automatically and simultaneously getting a digital version of your writing.
 
 ## Block Diagram
 
@@ -26,6 +26,8 @@ In the Gesture Recognition mode, the IMU sensor data is collected and used to pr
 Meanwhile, the illumination sensor continuously monitors the lighting levels and automatically switches the LED on in case it gets very dark.
 
 ## Schematic
+
+<image src='./Images/schematic.png'>
 
 Electronic Components Used: <br>
 1. Arduino Nano 33 BLE Sense (x1)
@@ -46,7 +48,9 @@ Electronic Components Used: <br>
 
 ## Prototype
 
-
+<image src='./Images/side_view.jpg'>
+<image src='./Images/front_view.jpg'>
+<image src='./Images/top_view.jpg'>
 
 ## Drawbacks
 
