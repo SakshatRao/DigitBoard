@@ -1,61 +1,79 @@
+####################################################################################
+# Imports
+####################################################################################
+
 import tkinter
 import time
 import numpy as np
 import serial
 import threading
 
-WINDOW_WIDTH = 1250
-WINDOW_HEIGHT = 600
 
-MAX_DIGITS_LEN = 20
 
-DIGITS = []
-CURSOR_POS = 0
 
-DIGIT_COLORS = ['black', 'red', 'green', 'blue']
-DIGIT_NUM_COLORS = len(DIGIT_COLORS)
-DIGIT_COLOR_IDX = 0
+####################################################################################
+# Parameters
+####################################################################################
 
-DIGIT_SIZES = [12, 16, 20, 24, 28, 32]
-DIGIT_NUM_SIZES = len(DIGIT_SIZES)
-DIGIT_SIZE_IDX = 2
+WINDOW_WIDTH = 1250                                     # Width of window
+WINDOW_HEIGHT = 600                                     # Height of window
 
-COMMUNICATION_STARTED = False
+MAX_DIGITS_LEN = 20                                     # Max no. of digits displayed
 
-NEW_DIGIT = 0
-NEW_DIGIT_ARRIVED = False
+DIGITS = []                                             # List to hold displayed digits
+CURSOR_POS = 0                                          # Index at which next digit will be placed
 
-NEW_CMD = ''
-NEW_CMD_ARRIVED = False
+DIGIT_COLORS = ['black', 'red', 'green', 'blue']        # List of available font colors
+DIGIT_NUM_COLORS = len(DIGIT_COLORS)                    # No. of available font colors
+DIGIT_COLOR_IDX = 0                                     # Index of currently chosen font color
 
-NONE_CODE = 1
-DIGIT_ACK_CODE = 2
+DIGIT_SIZES = [12, 16, 20, 24, 28, 32]                  # List of available font sizes
+DIGIT_NUM_SIZES = len(DIGIT_SIZES)                      # No. of available font sizes
+DIGIT_SIZE_IDX = 2                                      # Index of currently chosen font size
 
+COMMUNICATION_STARTED = False                           # Whether serial communication has started
+
+NEW_DIGIT = 0                                           # Variable to hold newly received digit
+NEW_DIGIT_ARRIVED = False                               # Whether a new digit has been received
+
+NEW_CMD = ''                                            # Variable to hold newly received command
+NEW_CMD_ARRIVED = False                                 # Whether a new command has been received
+
+
+
+
+####################################################################################
+# Tkinter Initialization
+####################################################################################
+
+# For main text box
 class Example(tkinter.Frame):
-
     def __init__(self):
         super().__init__()
         self.initUI()
-
     def initUI(self):
         self.master.title("Colours")
         self.pack(fill = tkinter.BOTH, expand = 1)
-
         canvas = tkinter.Canvas(self)
         canvas.create_rectangle(0, WINDOW_HEIGHT / 5, WINDOW_WIDTH / 2, WINDOW_HEIGHT * 4 / 5, outline = "#fb0", fill = "#fb0")
         canvas.pack(fill = tkinter.BOTH, expand = 1)
 
 window = tkinter.Tk()
 ex = Example()
+
+# For title
 window.title("DigitBoard")
 window.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}+10+20")
 
+# For main heading
 heading1 = tkinter.Label(window, text = "DigitBoard User Interface", fg = 'black', font = ("Helvetica", 32))
 heading1.place(x = 0, y = 0)
 
+# For received digit/command info
 heading2 = tkinter.Label(window, text = "", fg = 'red', font = ("Helvetica", 16))
 heading2.place(x = 0, y = 50)
 
+# For font color selection
 heading_color = tkinter.Label(window, text = "Font Color", fg = 'black', font = ("Helvetica", 16))
 heading_color.place(x = WINDOW_WIDTH * 2 / 3, y = WINDOW_HEIGHT / 3 - 40)
 v0 = tkinter.IntVar()
@@ -69,22 +87,33 @@ for color_idx, color in enumerate(DIGIT_COLORS):
     r1.place(x = WINDOW_WIDTH * 2 / 3, y = WINDOW_HEIGHT / 3 + color_idx * 20)
     r.append(r1)
 
+# For font size selection
 heading_size = tkinter.Label(window, text = "Font Size", fg = 'black', font = ("Helvetica", 16))
 heading_size.place(x = WINDOW_WIDTH * 2 / 3, y = 2 * WINDOW_HEIGHT / 3 - 40)
 scale_widget = tkinter.Scale(window, from_ = max(DIGIT_SIZES), to = min(DIGIT_SIZES), orient = tkinter.VERTICAL)
 scale_widget.set(DIGIT_SIZES[DIGIT_SIZE_IDX])
 scale_widget.place(x = WINDOW_WIDTH * 2 / 3, y = 2 * WINDOW_HEIGHT / 3)
 
-window.update()
-
+# For actual output to be displayed
 digit_output = tkinter.Label(window, text = "|", fg = DIGIT_COLORS[DIGIT_COLOR_IDX], bg = '#fb0', font = ('Helvetica', DIGIT_SIZES[DIGIT_SIZE_IDX]))
 digit_output.place(x = 0, y = WINDOW_HEIGHT / 5)
 
+# Updating all tkinter objects
+window.update()
+
+
+
+
+
+####################################################################################
+# Processing Functions
+####################################################################################
+
+# To add newly received digit to display
 def add_new_digit(digit, digits, cursor_pos):
     if((cursor_pos > MAX_DIGITS_LEN) | (cursor_pos < 0)):
         print("Not possible!")
         return digits, cursor_pos
-    
     if(len(digits) == MAX_DIGITS_LEN):
         del(digits[0])
         cursor_pos = cursor_pos - 1
@@ -92,6 +121,7 @@ def add_new_digit(digit, digits, cursor_pos):
     cursor_pos = cursor_pos + 1
     return digits, cursor_pos
 
+# To display all received digits
 def convert_digits_to_str(digits, cursor_pos):
     digits_str = []
     for digit_idx, digit in enumerate(digits):
@@ -102,6 +132,7 @@ def convert_digits_to_str(digits, cursor_pos):
         digits_str.append("|")
     return digits_str
 
+# To map gestures to commands
 def handle_cmd(cmd, digits, cursor_pos, color_idx, size_idx, num_colors, num_sizes):
     if(cmd == 'r'):
         if(len(digits) > cursor_pos):
@@ -129,6 +160,7 @@ def handle_cmd(cmd, digits, cursor_pos, color_idx, size_idx, num_colors, num_siz
         print(f"Unknown Command: {cmd}")
     return cursor_pos, color_idx, size_idx
 
+# To display command
 def cmd_str(cmd):
     if(cmd == 'r'):
         return "Move cursor right"
@@ -145,8 +177,17 @@ def cmd_str(cmd):
     else:
         return "Unknown command"
 
+
+
+
+
+####################################################################################
+# Thread to continuously receive new digits/commands
+####################################################################################
+
 def ReceiveThread():
 
+    # For using & updating global variables
     global serialPort
     global COMMUNICATION_STARTED
     global NEW_DIGIT
@@ -154,6 +195,9 @@ def ReceiveThread():
     global NEW_CMD
     global NEW_CMD_ARRIVED
 
+    # 1. Waiting for NEW_DIGIT_ARRIVED/NEW_COMMAND_ARRIVED to be False
+    # 2. Continously receiving new digits & commands
+    # 3. Setting NEW_DIGIT_ARRIVED/NEW_COMMAND_ARRIVED to True
     while(serialPort):
         if(COMMUNICATION_STARTED == True):
             if(NEW_DIGIT_ARRIVED == False):
@@ -172,17 +216,29 @@ def ReceiveThread():
                             NEW_CMD = new_cmd
                             NEW_CMD_ARRIVED = True
 
-try:
 
+
+
+
+
+####################################################################################
+# Updating display
+####################################################################################
+
+try:
+    # Initializing serial communication via handshake
     serialPort = serial.Serial(port = "/dev/ttyACM0", baudrate = 115200, bytesize = 8, timeout = 2, stopbits = serial.STOPBITS_ONE)
-    print("Initializing ")
-    
+    print("Initializing ")    
     serialPort.write(b"2")
     COMMUNICATION_STARTED = True
     print("Connection Initiating...")
 
+    # Starting thread to continuously receive digits/commands
     threading.Thread(target = ReceiveThread).start()
 
+    # 1. Waiting for NEW_DIGIT_ARRIVED/NEW_COMMAND_ARRIVED to be True
+    # 2. Processing & displaying new digits & commands
+    # 3. Setting NEW_DIGIT_ARRIVED/NEW_COMMAND_ARRIVED to False
     while True:
         if(NEW_DIGIT_ARRIVED == True):
             (DIGITS, CURSOR_POS) = add_new_digit(NEW_DIGIT, DIGITS, CURSOR_POS)
@@ -211,5 +267,6 @@ try:
 
         window.update()
         time.sleep(1)
+
 finally:
     serialPort.close()
