@@ -227,6 +227,7 @@ def ReceiveThread():
 
 try:
     # Initializing serial communication via handshake
+    # NOTE: change '/dev/ttyACM0' according to port connection
     serialPort = serial.Serial(port = "/dev/ttyACM0", baudrate = 115200, bytesize = 8, timeout = 2, stopbits = serial.STOPBITS_ONE)
     print("Initializing ")    
     serialPort.write(b"2")
