@@ -8,12 +8,14 @@ Check out a short fun video demonstration of the DigitBoard -
 https://youtu.be/d9JbB8Kmpzg
 <br>
 <br>
+
 ## Overview
 I like to call this project of mine as 'DigitBoard' because of two reasons - <br>
 1. It was designed to implement <b>digit</b> recognition using TinyML models
 2. This idea essentially <b>digit</b>izes pen-and-paper writing, i.e. as you write something down on paper, you are automatically and simultaneously getting a digital version of your writing.
 <br>
 <br>
+
 ## Block Diagram
 
 <img src='./Images/Block_Diagram.png'>
@@ -27,9 +29,12 @@ In the Gesture Recognition mode, the IMU sensor data is collected and used to pr
 Meanwhile, the illumination sensor continuously monitors the lighting levels and automatically switches the LED on in case it gets very dark.
 <br>
 <br>
+
 ## Schematic
 
 <image src='./Images/schematic.png'>
+<br>
+<br>
 
 Electronic Components Used: <br>
 1. Arduino Nano 33 BLE Sense (x1)
@@ -42,6 +47,7 @@ Electronic Components Used: <br>
 8. 1 Kilo-ohm resistor (x5)
 <br>
 <br>
+
 ## Main Features
 
 * <b>Digit Recognition</b>: The core idea of this project was to be able to identify digits being drawn by tracking the motion of the pen. The main assumption here was that whatever shape I draw on a piece of paper, I can expect my pen to move in a similar shape. Hence, I can approximate what is being drawn on the paper without actually seeing the drawing through cameras or other visual sensors. The motion of the pen is being tracked by the LSM9DS1 IMU sensor in-built on the Arduino Nano 33 BLE Sense.
@@ -50,6 +56,7 @@ Electronic Components Used: <br>
 * <b>Gesture Commands</b>: In order to customize/format the text on the User Interface, gesture commands can be used. After switching the mode via a switch, the pen can be used to make simple gestures. Each gesture is then mapped to a particular command which then updates the display. The motion of the pen is being tracked by the same LSM9DS1 IMU sensor in-built on the Arduino Nano 33 BLE Sense.
 <br>
 <br>
+
 ## Prototype
 
 <image src='./Images/side_view.jpg'>
@@ -57,6 +64,7 @@ Electronic Components Used: <br>
 <image src='./Images/top_view.jpg'>
 <br>
 <br>
+
 ## Drawbacks
 
 Like most embedded projects, I did have to face some issues. I managed to solve most of them but I did settle for a less better alternative in some cases.
@@ -66,4 +74,5 @@ My prototype was able to recognize only 3 digits - 0, 1 & 2. Although not very f
 The communication of the DigitBoard with the laptop can happen either wirelessly through BLE or through UART. Although I was able to send messages using BLE, I wasn't able to integrate it with the TinyML models due to shortage of memory. Most probably, it might have been caused by my inefficient coding and hence should be easily resolvable. Again, since my intention was to show that the idea can work, I eventually opted for serial communication.
 <br>
 <br>
+
 # Thank You!
